@@ -1,3 +1,4 @@
+
 name: Terraform CI
 
 on:
@@ -5,6 +6,7 @@ on:
   pull_request:
 
 jobs:
+  # Job 1: Original Terraform CI checks
   terraform-checks:
     runs-on: ubuntu-latest
 
@@ -23,6 +25,46 @@ jobs:
 
       - name: Terraform Validate
         run: terraform validate
-        
+
       - name: Terraform Plan
-        run: terraform plan -input=false -no-color   
+        run: terraform plan -input=false -no-color
+
+  # Job 2: Real GCP Terraform Plan
+  gcp-terraform-plan:
+    runs-on: ubuntu-latest
+
+    # Our GCP OIDC provider currently allows main only
+    if: github.ref == 'refs/heads/main'
+
+    permissions:
+      contents: read
+      id-token: write
+
+    defaults:
+      run:
+        working-directory: infrastructure/lab10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: projects/812569208126/locations/global/workloadIdentityPools/github-actions-pool/providers/github-provider
+          service_account: github-terraform-plan@terraform-learning-lab-514407.iam.gserviceaccount.com
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        run: terraform init -input=false
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+
+      - name: Terraform Validate
+        run: terraform validate
+
+       - name: Terraform Plan
+        run: terraform plan -input=false -lock=false -no-color
