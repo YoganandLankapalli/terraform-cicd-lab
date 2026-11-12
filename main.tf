@@ -3,8 +3,8 @@ terraform {
 }
 
 locals {
-project_name="terraform-cicd-lab"
-environment="dev"
+  project_name = "terraform-cicd-lab"
+  environment  = "dev"
 }
 
 output "project_info" {
