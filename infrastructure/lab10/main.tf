@@ -23,5 +23,6 @@ resource "google_storage_bucket" "lab10_bucket" {
   labels = {
     environment = "dev"
     managed_by  = "terraform"
+    deployment  = "github-actions"
   }
 }

@@ -1,5 +1,5 @@
 
-name: Terraform Approved Apply
+name: Terraform Plan and Approved Apply
 
 on:
   workflow_dispatch:
@@ -13,11 +13,9 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  terraform-apply:
-    name: Approved Terraform Apply
+  terraform-plan:
+    name: Generate Terraform Plan
     runs-on: ubuntu-latest
-
-    environment: lab-apply
 
     defaults:
       run:
@@ -26,42 +24,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-    
-    
-      - name: Inspect GitHub OIDC identity
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          import os
-          import json
-          import base64
-          import urllib.request
-
-          url = os.environ["ACTIONS_ID_TOKEN_REQUEST_URL"]
-          token = os.environ["ACTIONS_ID_TOKEN_REQUEST_TOKEN"]
-
-          request = urllib.request.Request(
-              url + "&audience=terraform-identity-debug",
-              headers={"Authorization": f"Bearer {token}"}
-          )
-
-          with urllib.request.urlopen(request) as response:
-              jwt = json.load(response)["value"]
-
-          payload = jwt.split(".")[1]
-          payload += "=" * (-len(payload) % 4)
-          claims = json.loads(base64.urlsafe_b64decode(payload))
-
-          for key in ["sub", "repository", "ref", "environment"]:
-              print(f"{key}: {claims.get(key)}")
-          PY
-
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v3
         with:
-          workload_identity_provider: projects/812569208126/locations/global/workloadIdentityPools/github-actions-pool/providers/github-apply-provider
-          service_account: github-terraform-apply@terraform-learning-lab-514407.iam.gserviceaccount.com
+          workload_identity_provider: projects/812569208126/locations/global/workloadIdentityPools/github-actions-pool/providers/github-provider
+          service_account: github-terraform-plan@terraform-learning-lab-514407.iam.gserviceaccount.com
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -76,8 +44,4 @@ jobs:
         run: terraform validate
 
       - name: Terraform Plan
-        run: terraform plan -input=false -out=tfplan
-
-      - name: Terraform Apply
-        if: ${{ false }}
-        run: terraform apply -input=false tfplan
+        run: terraform plan -input=false -no-color
