@@ -101,5 +101,4 @@ jobs:
           echo "Saved Terraform plan verified successfully."
 
       - name: Terraform Apply
-        if: ${{ false }}
         run: terraform apply -input=false tfplan
