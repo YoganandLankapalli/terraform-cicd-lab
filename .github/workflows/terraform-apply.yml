@@ -94,6 +94,12 @@ jobs:
           name: terraform-plan
           path: infrastructure/lab10
 
+      - name: Verify Saved Terraform Plan
+        run: |
+          test -s tfplan
+          terraform show -no-color tfplan > /dev/null
+          echo "Saved Terraform plan verified successfully."
+
       - name: Terraform Apply
         if: ${{ false }}
         run: terraform apply -input=false tfplan
