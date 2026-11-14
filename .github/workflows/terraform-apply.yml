@@ -44,4 +44,17 @@ jobs:
         run: terraform validate
 
       - name: Terraform Plan
-        run: terraform plan -input=false -no-color
+        run: terraform plan -input=false -no-color -out=tfplan
+
+      - name: Generate Readable Plan
+        run: terraform show -no-color tfplan > plan.txt
+
+      - name: Upload Terraform Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan
+          path: |
+            infrastructure/lab10/tfplan
+            infrastructure/lab10/plan.txt
+          retention-days: 1
+          if-no-files-found: error
