@@ -67,4 +67,4 @@ jobs:
         run: terraform validate
 
       - name: Terraform Plan
-        run: terraform plan -input=false -lock=false -no-color
+        run: terraform plan -input=false -no-color
