@@ -15,6 +15,7 @@ concurrency:
 jobs:
   terraform-plan:
     name: Generate Terraform Plan
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
 
     defaults:
@@ -58,3 +59,41 @@ jobs:
             infrastructure/lab10/plan.txt
           retention-days: 1
           if-no-files-found: error
+
+
+  terraform-apply:
+    name: Approved Terraform Apply
+    needs: terraform-plan
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: lab-apply
+
+    defaults:
+      run:
+        working-directory: infrastructure/lab10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: projects/812569208126/locations/global/workloadIdentityPools/github-actions-pool/providers/github-apply-provider
+          service_account: github-terraform-apply@terraform-learning-lab-514407.iam.gserviceaccount.com
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        run: terraform init -input=false
+
+      - name: Download Saved Terraform Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-plan
+          path: infrastructure/lab10
+
+      - name: Terraform Apply
+        if: ${{ false }}
+        run: terraform apply -input=false tfplan
