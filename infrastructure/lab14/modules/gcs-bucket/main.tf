@@ -7,5 +7,6 @@ resource "google_storage_bucket" "this" {
   labels = {
     environment = var.environment
     managed_by  = "terraform"
+    deployed_by = "github-actions"
   }
 }
