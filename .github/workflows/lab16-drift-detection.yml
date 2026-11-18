@@ -1,0 +1,83 @@
+name: Lab 16 Terraform Drift Detection
+
+on:
+  schedule:
+    - cron: '0 14 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: terraform-lab14-deployment
+  cancel-in-progress: false
+
+jobs:
+  drift-detection:
+    name: Drift Detection - ${{ matrix.environment }}
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        environment: [dev, uat]
+
+    defaults:
+      run:
+        working-directory: infrastructure/lab14/environments/${{ matrix.environment }}
+
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: projects/812569208126/locations/global/workloadIdentityPools/github-actions-pool/providers/github-provider
+          service_account: github-terraform-plan@terraform-learning-lab-514407.iam.gserviceaccount.com
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform Init
+        run: terraform init -input=false
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Detect Infrastructure Drift
+        shell: bash
+        run: |
+          set +e
+
+          terraform plan -refresh-only \
+            -detailed-exitcode \
+            -input=false \
+            -no-color
+
+          EXIT_CODE=$?
+
+          set -e
+
+          case "$EXIT_CODE" in
+            0)
+              echo "SUCCESS: No infrastructure drift detected"
+              ;;
+            1)
+              echo "::error::Terraform plan execution failed"
+              exit 1
+              ;;
+            2)
+              echo "::warning::Infrastructure drift detected"
+              exit 1
+              ;;
+            *)
+              echo "::error::Unexpected Terraform exit code"
+              exit 1
+              ;;
+          esac
