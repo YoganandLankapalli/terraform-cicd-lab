@@ -1,0 +1,35 @@
+name: Lab 14 Terraform CI
+
+on:
+  pull_request:
+    paths:
+      - "infrastructure/lab14/**"
+      - ".github/workflows/lab14-ci.yml"
+
+jobs:
+  terraform-validate:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        environment: [dev, uat]
+
+    defaults:
+      run:
+        working-directory: infrastructure/lab14/environments/${{ matrix.environment }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        run: terraform init -backend=false -input=false
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+
+      - name: Terraform Validate
+        run: terraform validate

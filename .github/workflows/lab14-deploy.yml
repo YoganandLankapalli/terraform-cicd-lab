@@ -1,0 +1,190 @@
+name: Lab 14 Terraform Deployment
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: terraform-lab14-deployment
+  cancel-in-progress: false
+
+jobs:
+  dev-plan:
+    name: DEV Terraform Plan
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: infrastructure/lab14/environments/dev
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: projects/812569208126/locations/global/workloadIdentityPools/github-actions-pool/providers/github-provider
+          service_account: github-terraform-plan@terraform-learning-lab-514407.iam.gserviceaccount.com
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        run: terraform init -input=false
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        run: terraform plan -input=false -no-color -out=tfplan
+
+      - name: Generate Readable Plan
+        run: terraform show -no-color tfplan > plan.txt
+
+      - name: Upload DEV Terraform Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: lab14-dev-plan
+          path: |
+            infrastructure/lab14/environments/dev/tfplan
+            infrastructure/lab14/environments/dev/plan.txt
+          retention-days: 1
+          if-no-files-found: error
+
+  dev-apply:
+    name: DEV Terraform Apply
+    needs: dev-plan
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: lab-apply
+
+    defaults:
+      run:
+        working-directory: infrastructure/lab14/environments/dev
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: projects/812569208126/locations/global/workloadIdentityPools/github-actions-pool/providers/github-apply-provider
+          service_account: github-terraform-apply@terraform-learning-lab-514407.iam.gserviceaccount.com
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        run: terraform init -input=false
+
+      - name: Download DEV Terraform Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: lab14-dev-plan
+          path: infrastructure/lab14/environments/dev
+
+      - name: Verify Saved Plan
+        run: |
+          test -s tfplan
+          terraform show -no-color tfplan > /dev/null
+
+      - name: Terraform Apply
+        run: terraform apply -input=false tfplan
+
+  uat-plan:
+    name: UAT Terraform Plan
+    needs: dev-apply
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: infrastructure/lab14/environments/uat
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: projects/812569208126/locations/global/workloadIdentityPools/github-actions-pool/providers/github-provider
+          service_account: github-terraform-plan@terraform-learning-lab-514407.iam.gserviceaccount.com
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        run: terraform init -input=false
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        run: terraform plan -input=false -no-color -out=tfplan
+
+      - name: Generate Readable Plan
+        run: terraform show -no-color tfplan > plan.txt
+
+      - name: Upload UAT Terraform Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: lab14-uat-plan
+          path: |
+            infrastructure/lab14/environments/uat/tfplan
+            infrastructure/lab14/environments/uat/plan.txt
+          retention-days: 1
+          if-no-files-found: error
+
+  uat-apply:
+    name: UAT Terraform Apply
+    needs: uat-plan
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: lab-apply
+
+    defaults:
+      run:
+        working-directory: infrastructure/lab14/environments/uat
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: projects/812569208126/locations/global/workloadIdentityPools/github-actions-pool/providers/github-apply-provider
+          service_account: github-terraform-apply@terraform-learning-lab-514407.iam.gserviceaccount.com
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        run: terraform init -input=false
+
+      - name: Download UAT Terraform Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: lab14-uat-plan
+          path: infrastructure/lab14/environments/uat
+
+      - name: Verify Saved Plan
+        run: |
+          test -s tfplan
+          terraform show -no-color tfplan > /dev/null
+
+      - name: Terraform Apply
+        run: terraform apply -input=false tfplan
