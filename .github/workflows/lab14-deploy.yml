@@ -2,6 +2,12 @@ name: Lab 14 Terraform Deployment
 
 on:
   workflow_dispatch:
+    inputs:
+      simulate_failure:
+        description: "Simulate a DEV validation failure"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -100,9 +106,41 @@ jobs:
       - name: Terraform Apply
         run: terraform apply -input=false tfplan
 
+  dev-smoke-test:
+    name: DEV Smoke Test
+    needs: dev-apply
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: projects/812569208126/locations/global/workloadIdentityPools/github-actions-pool/providers/github-provider
+          service_account: github-terraform-plan@terraform-learning-lab-514407.iam.gserviceaccount.com
+
+      - name: Setup Google Cloud CLI
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Verify dependencies
+        run: |
+          gcloud --version
+          jq --version
+
+      - name: Run DEV Smoke Test
+        run: bash scripts/lab15/validate-bucket.sh dev
+      - name: Simulate Validation Failure
+        if: inputs.simulate_failure
+        run: |
+          echo "ERROR: Simulated DEV validation failure"
+          exit 1
+
   uat-plan:
     name: UAT Terraform Plan
-    needs: dev-apply
+    needs: dev-smoke-test
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
 
@@ -188,3 +226,30 @@ jobs:
 
       - name: Terraform Apply
         run: terraform apply -input=false tfplan
+
+  uat-smoke-test:
+    name: UAT Smoke Test
+    needs: uat-apply
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: projects/812569208126/locations/global/workloadIdentityPools/github-actions-pool/providers/github-provider
+          service_account: github-terraform-plan@terraform-learning-lab-514407.iam.gserviceaccount.com
+
+      - name: Setup Google Cloud CLI
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Verify dependencies
+        run: |
+          gcloud --version
+          jq --version
+
+      - name: Run UAT Smoke Test
+        run: bash scripts/lab15/validate-bucket.sh uat
