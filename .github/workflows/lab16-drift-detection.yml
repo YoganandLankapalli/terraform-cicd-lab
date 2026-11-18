@@ -1,3 +1,4 @@
+
 name: Lab 16 Terraform Drift Detection
 
 on:
@@ -27,7 +28,6 @@ jobs:
     defaults:
       run:
         working-directory: infrastructure/lab14/environments/${{ matrix.environment }}
-
 
     steps:
       - name: Checkout repository
@@ -61,23 +61,44 @@ jobs:
             -no-color
 
           EXIT_CODE=$?
-
           set -e
 
           case "$EXIT_CODE" in
             0)
-              echo "SUCCESS: No infrastructure drift detected"
-              ;;
-            1)
-              echo "::error::Terraform plan execution failed"
-              exit 1
+              echo "SUCCESS: No state discrepancies detected"
               ;;
             2)
-              echo "::warning::Infrastructure drift detected"
+              echo "::notice::State discrepancies detected. Checking desired configuration."
+              ;;
+            *)
+              echo "::error::Refresh-only plan failed"
+              exit 1
+              ;;
+          esac
+
+      - name: Check Desired Infrastructure Configuration
+        shell: bash
+        run: |
+          set +e
+
+          terraform plan \
+            -detailed-exitcode \
+            -input=false \
+            -no-color
+
+          EXIT_CODE=$?
+          set -e
+
+          case "$EXIT_CODE" in
+            0)
+              echo "SUCCESS: Infrastructure matches desired configuration"
+              ;;
+            2)
+              echo "::error::Terraform changes required. Review plan."
               exit 1
               ;;
             *)
-              echo "::error::Unexpected Terraform exit code"
+              echo "::error::Terraform plan execution failed"
               exit 1
               ;;
           esac
